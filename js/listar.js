@@ -45,6 +45,9 @@ async function listarUsuarios() {
                             <button class="btn btn-info btn-sm visualizar-usuario" data-id="${usuario.id}">
                                 <i class="fas fa-eye"></i>
                             </button>
+                            <button class="btn btn-info btn-sm editar-usuario" data-id="${usuario.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
                             ${
                                 usuario.id != userIdLogado
                                 ? `<button class="btn btn-danger btn-sm excluir-usuario" data-id="${usuario.id}">
@@ -66,6 +69,13 @@ async function listarUsuarios() {
                         if (confirmar) {
                             await excluirUsuario(userId);
                         }
+                    });
+                });
+
+                document.querySelectorAll('.editar-usuario').forEach(button => {
+                    button.addEventListener('click', async function() {
+                        const userId = this.getAttribute('data-id');
+                        await editarUsuario(userId);
                     });
                 });
 
@@ -112,6 +122,76 @@ async function excluirUsuario(userId) {
         console.error('Erro:', error);
         alert('Erro ao excluir o usuário.');
     }
+}
+
+// Função para editar o usuário
+async function editarUsuario(userId) {
+    const token = localStorage.getItem('token');
+
+    fetch(`http://localhost:8000/api/user/visualizar/${userId}`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    }).then(response => response.json()).then(data => {        
+        // Preenche os dados do modal
+        document.getElementById('name').value = data.user.name;
+        document.getElementById('email').value = data.user.email;
+
+        // Abre o modal de visualização
+        (new bootstrap.Modal(document.getElementById('editarUsuarioModal'))).show();
+
+        const button = document.querySelector('.submit-editar');
+        const mensagem = document.getElementById('mensagem');
+
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+        
+            let user = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            if (!user.password) {
+                delete user.password;
+            }
+        
+            // Validação da senha
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        
+            if (user.password && !passwordRegex.test(user.password)) {
+                mensagem.textContent = 'A senha deve ter pelo menos 8 caracteres, incluindo uma letra maiúscula, uma letra minúscula, um número e um caractere especial.';
+                return;
+            }
+    
+            try {
+                const response = await fetch(`http://localhost:8000/api/user/atualizar/${userId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(user)
+                });
+    
+                if (response.ok) {
+                    alert('Usuário editado com sucesso!');
+                    listarUsuarios();
+                } else {
+                    throw new Error('Erro ao editar o usuário');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao editar o usuário.');
+            }
+        });
+    })
+    .catch(error => {
+        console.error('Erro ao visualizar o usuário:', error);
+    });
+
 }
 
 function visualizarUsuario(userId) {
